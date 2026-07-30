@@ -33,6 +33,14 @@ class Ticket(models.Model):
         blank=True,
         related_name='assigned_tickets'
     )
+    
+    requester = models.ForeignKey(
+        Member,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_tickets'
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

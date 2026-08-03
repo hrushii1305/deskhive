@@ -1,5 +1,6 @@
 from django.db import models
 from organizations.models import Organization
+from django.contrib.auth.models import User
 
 
 class Member(models.Model):
@@ -9,6 +10,13 @@ class Member(models.Model):
         ('customer', 'Customer'),
     ]
 
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='member'
+    )
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
@@ -48,7 +56,6 @@ class Member(models.Model):
         return True
 
     def can_view_ticket(self, ticket):
-        # owners/agents see all org tickets; customers see only tickets they raised
         if self.role in ('owner', 'agent'):
             return True
         return ticket.requester_id == self.id

@@ -18,6 +18,11 @@ SECRET_KEY = os.environ.get(
 # CHANGED: DEBUG from env, defaults to False (safe for production)
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_TRUSTED_ORIGINS',
+    'https://deskhive-production.up.railway.app'
+).split(',')
+
 # CHANGED: ALLOWED_HOSTS from env, defaults to localhost for local dev
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 

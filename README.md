@@ -11,7 +11,7 @@ A production-deployed, multi-tenant B2B helpdesk platform built with Django and 
 
 DeskHive lets multiple companies (tenants) run their customer support on one deployed instance while guaranteeing that no organization can ever see another's data. Each request is scoped to the authenticated user's organization, and within that organization, a user's role (Owner, Agent, or Customer) determines exactly what they can see and do.
 
-The project was built in phases: a shippable, deployed core first, with advanced features layered on top of the live application.
+New organizations self-register through a public endpoint — the registrant becomes the Owner — and an Owner then manages their team's Agents and Customers. The project was built in phases: a shippable, deployed core first, with features layered on top of the live application.
 
 ---
 
@@ -22,6 +22,7 @@ The project was built in phases: a shippable, deployed core first, with advanced
   - *Owner/Admin* — full organization control, manages members and settings, sees all tickets.
   - *Agent* — works the shared ticket queue: views all org tickets, transitions states, comments.
   - *Customer* — restricted to only the tickets they personally raised.
+- **Self-service registration** — public signup creates a new organization with the registrant as its Owner; passwords are hashed (never stored in plain text), and account creation is wrapped in a database transaction so it either fully succeeds or rolls back entirely.
 - **JWT authentication** — stateless, short-lived access tokens (no server-side session storage), enabling horizontal scalability.
 - **Full REST API** — complete CRUD for tickets plus a nested, security-hardened comment system.
 - **Ticket lifecycle** — status workflow (Open → In Progress → Resolved → Closed) with priority levels.
@@ -44,6 +45,7 @@ The project was built in phases: a shippable, deployed core first, with advanced
 
 - **`on_delete` per relationship:** Deleting an Organization cascades to its Members and Tickets (the data is meaningless without the tenant). Deleting a Member sets their Tickets' and Comments' references to null (the records outlive the person — history is preserved).
 - **Tenant isolation in `get_queryset`:** Views resolve `request.user.member` → filter all data to `member.organization`. Customers are further narrowed to their own tickets.
+- **Secure registration:** Public signup creates the User, Organization, and Member together inside a single atomic transaction, so a failure never leaves an orphaned account. A user can only ever become Owner of an organization they create — they can't inject themselves into an existing one.
 - **Secure nested resources:** Comments live at `/api/tickets/<id>/comments/`. The parent ticket is derived from the URL and validated against the org-scoped queryset — never trusted from the request body — preventing broken object-level authorization.
 
 ---
@@ -63,13 +65,14 @@ The project was built in phases: a shippable, deployed core first, with advanced
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| `POST` | `/api/register/` | Public signup — creates a new organization and its Owner account |
 | `POST` | `/api/token/` | Obtain JWT access + refresh tokens (login) |
 | `POST` | `/api/token/refresh/` | Refresh an expired access token |
 | `GET` `POST` | `/api/tickets/` | List org tickets / create a ticket |
 | `GET` `PUT` `PATCH` `DELETE` | `/api/tickets/<id>/` | Retrieve / update / delete a ticket |
 | `GET` `POST` | `/api/tickets/<id>/comments/` | List / add comments on a ticket |
 
-All ticket and comment endpoints require a valid JWT (`Authorization: Bearer <token>`) and return only data within the authenticated user's organization.
+Registration is public; all ticket and comment endpoints require a valid JWT (`Authorization: Bearer <token>`) and return only data within the authenticated user's organization.
 
 ---
 
@@ -102,7 +105,7 @@ The app runs at `http://127.0.0.1:8000/` using SQLite locally. Production settin
 
 ## Roadmap
 
-Phase 2 (in progress, on the live app):
+Phase 2 (planned, on the live app):
 - Asynchronous email notifications (Celery)
 - Scheduled SLA escalation (Celery Beat)
 - Immutable audit log for ticket state changes

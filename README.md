@@ -3,7 +3,7 @@
 A production-deployed, multi-tenant B2B helpdesk platform built with Django and Django REST Framework. Multiple independent organizations manage their support operations on a single application instance, with strict data isolation and role-based access control enforced at the API layer.
 
 **Live demo:** https://deskhive-production.up.railway.app
-**API root:** https://deskhive-production.up.railway.app/api/tickets/
+**API root:** https://deskhive-production.up.railway.app/api/register/   or api/token/
 
 ---
 

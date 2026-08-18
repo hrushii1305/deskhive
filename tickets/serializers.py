@@ -9,7 +9,10 @@ class TicketSerializer(serializers.ModelSerializer):
             'organization', 'assigned_to', 'requester',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'organization', 'assigned_to', 'requester',
+            'created_at', 'updated_at',
+        ]
         
         
 class CommentSerializer(serializers.ModelSerializer):

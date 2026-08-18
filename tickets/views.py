@@ -2,7 +2,9 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound
 from .models import Ticket, Comment
+from .services import get_least_loaded_agent
 from .serializers import TicketSerializer, CommentSerializer
+from .tasks import send_ticket_created_email, send_ticket_assigned_email
 
 
 class TicketListCreateView(generics.ListCreateAPIView):
@@ -10,11 +12,23 @@ class TicketListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        member = self.request.user.member          # resolve request -> member
-        org_tickets = Ticket.objects.filter(organization=member.organization)  # tenant isolation
+        member = self.request.user.member
+        org_tickets = Ticket.objects.filter(organization=member.organization)
         if member.role == 'customer':
-            return org_tickets.filter(requester=member)   # RBAC: customer sees only their own
-        return org_tickets                          # owner/agent see all org tickets
+            return org_tickets.filter(requester=member)
+        return org_tickets
+
+    def perform_create(self, serializer):
+        member = self.request.user.member
+        agent = get_least_loaded_agent(member.organization)
+        ticket = serializer.save(
+            organization=member.organization,
+            requester=member,
+            assigned_to=agent,
+        )
+        send_ticket_created_email.delay(ticket.id)
+        if agent:
+            send_ticket_assigned_email.delay(ticket.id)
 
 
 class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -27,7 +41,6 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
         if member.role == 'customer':
             return org_tickets.filter(requester=member)
         return org_tickets
-    
 
 
 class CommentListCreateView(generics.ListCreateAPIView):
@@ -36,14 +49,13 @@ class CommentListCreateView(generics.ListCreateAPIView):
 
     def get_ticket(self):
         member = self.request.user.member
-        # scope tickets to the member's org — this is the safety check
         org_tickets = Ticket.objects.filter(organization=member.organization)
         if member.role == 'customer':
             org_tickets = org_tickets.filter(requester=member)
         try:
             return org_tickets.get(pk=self.kwargs['ticket_id'])
         except Ticket.DoesNotExist:
-            raise NotFound("Ticket not found")   # 404 if not in their scope
+            raise NotFound("Ticket not found")
 
     def get_queryset(self):
         ticket = self.get_ticket()

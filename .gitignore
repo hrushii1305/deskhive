@@ -9,3 +9,5 @@ staticfiles/
 htmlcov/
 dump.rdb
 *.rdb
+celerybeat-schedule
+celerybeat-schedule.*

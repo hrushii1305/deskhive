@@ -2,6 +2,8 @@ from celery import shared_task
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import Ticket
+from datetime import timedelta
+from django.utils import timezone
 
 
 @shared_task
@@ -61,3 +63,22 @@ def send_ticket_assigned_email(ticket_id):
         recipient_list=[ticket.assigned_to.email],
         fail_silently=False,
     )
+    
+
+@shared_task
+def escalate_stale_tickets():
+    """Escalate tickets open >24h to High priority."""
+    cutoff = timezone.now() - timedelta(hours=24)
+
+    stale = Ticket.objects.filter(
+        status='open',
+        created_at__lt=cutoff,
+    ).exclude(priority='high')
+
+    count = 0
+    for ticket in stale:
+        ticket.priority = 'high'
+        ticket.save(update_fields=['priority', 'updated_at'])
+        count += 1
+
+    return f"Escalated {count} ticket(s)"

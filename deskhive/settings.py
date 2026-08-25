@@ -40,12 +40,14 @@ INSTALLED_APPS = [
     'organizations',
     'accounts',
     'tickets',
+    'drf_spectacular',
 ]
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 
@@ -132,3 +134,9 @@ EMAIL_BACKEND = os.environ.get(
     'django.core.mail.backends.console.EmailBackend'
 )
 DEFAULT_FROM_EMAIL = 'DeskHive <noreply@deskhive.app>'
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'DeskHive API',
+    'DESCRIPTION': 'Multi-tenant helpdesk SaaS — REST API',
+    'VERSION': '1.0.0',
+}

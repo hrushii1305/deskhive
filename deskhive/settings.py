@@ -2,20 +2,22 @@
 Django settings for deskhive project.
 """
 
-import os                          # CHANGED: added — needed to read environment variables
-import dj_database_url             # CHANGED: added — parses the database URL from env
+import os
+import dj_database_url
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables from .env (must run before any os.environ.get calls)
+load_dotenv(BASE_DIR / '.env')
 
-# CHANGED: SECRET_KEY now read from env, falls back to your key for local dev
-SECRET_KEY = os.environ.get(
-    'SECRET_KEY',
-    'django-insecure-hs&_)1113+25y7ane5ik*lz5&m=ruzfq(7kc!thd8n^s)gb2gk'
-)
 
-# CHANGED: DEBUG from env, defaults to False (safe for production)
+# SECRET_KEY read from environment only — never hardcoded.
+# Local: .env file. Production: Railway env var. CI: workflow env.
+SECRET_KEY = os.environ['SECRET_KEY']
+
+# DEBUG from env, defaults to False (safe for production)
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
@@ -23,7 +25,7 @@ CSRF_TRUSTED_ORIGINS = os.environ.get(
     'https://deskhive-production.up.railway.app'
 ).split(',')
 
-# CHANGED: ALLOWED_HOSTS from env, defaults to localhost for local dev
+# ALLOWED_HOSTS from env, defaults to localhost for local dev
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
 
 
@@ -53,7 +55,7 @@ REST_FRAMEWORK = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',   # CHANGED: added, right after SecurityMiddleware
+    'whitenoise.middleware.WhiteNoiseMiddleware',   # right after SecurityMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -82,8 +84,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'deskhive.wsgi.application'
 
 
-# CHANGED: Database — uses DATABASE_URL env var (Postgres on Railway),
-# falls back to your local SQLite when that env var isn't set
+# Database — uses DATABASE_URL env var (Postgres on Railway),
+# falls back to local SQLite when that env var isn't set
 DATABASES = {
     'default': dj_database_url.config(
         default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
@@ -108,9 +110,9 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'      # CHANGED: added — where collectstatic gathers files
+STATIC_ROOT = BASE_DIR / 'staticfiles'      # where collectstatic gathers files
 
-# CHANGED: added — WhiteNoise compressed static storage for production
+# WhiteNoise compressed static storage for production
 STORAGES = {
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.views.generic import TemplateView
 from django.urls import path, include
 from django.views.generic import RedirectView
 from rest_framework_simplejwt.views import (
@@ -12,7 +13,8 @@ from drf_spectacular.views import (
 )
 
 urlpatterns = [
-    path('', RedirectView.as_view(url='/admin/', permanent=False)),
+    path('', TemplateView.as_view(template_name='index.html'), name='home'),
+    path('tickets/', TemplateView.as_view(template_name='tickets.html'), name='tickets-page'),
     path('admin/', admin.site.urls),
     path('api/', include('tickets.urls')),
     path('api/', include('accounts.urls')),

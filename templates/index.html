@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DeskHive Login</title>
+</head>
+<body>
+    <h1>DeskHive Login</h1>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button id="loginBtn">Log in</button>
+    <p id="message"></p>
+
+    <script>
+        // Grab the button element by its id, so we can react when it's clicked
+        const loginBtn = document.getElementById("loginBtn");
+
+        // When the button is clicked, run this function
+        loginBtn.addEventListener("click", async function () {
+
+            // Read what the user typed into the two input boxes
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            // The <p> where we'll show success/error messages
+            const message = document.getElementById("message");
+
+            // Send the credentials to the login endpoint
+            const response = await fetch("/api/token/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: username, password: password })
+            });
+
+            // Turn the response into a JavaScript object
+            const data = await response.json();
+
+            if (response.ok) {
+                // Login worked — the JWT is in data.access. Store it in the browser.
+                localStorage.setItem("access", data.access);
+                localStorage.setItem("refresh", data.refresh);
+                message.textContent = "Login successful! Redirecting...";
+  window.location.href = "/tickets/";
+            } else {
+                // Login failed — show the error
+                message.textContent = "Login failed: " + (data.detail || "check your credentials");
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DeskHive — Tickets</title>
+</head>
+<body>
+    <h1>My Tickets</h1>
+    <p id="message"></p>
+    <ul id="ticketList"></ul>
+
+    <script>
+        // Read the token we stored at login
+        const token = localStorage.getItem("access");
+
+        // If there's no token, the user isn't logged in — send them back to login
+        if (!token) {
+            window.location.href = "/";
+        }
+
+        // Fetch the tickets, attaching the token to prove we're authenticated
+        async function loadTickets() {
+            const response = await fetch("/api/tickets/", {
+                method: "GET",
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            const message = document.getElementById("message");
+            const ticketList = document.getElementById("ticketList");
+
+            if (response.ok) {
+                const tickets = await response.json();
+                if (tickets.length === 0) {
+                    message.textContent = "No tickets yet.";
+                } else {
+                    // Build a list item for each ticket
+                    tickets.forEach(function (ticket) {
+                        const li = document.createElement("li");
+                        li.textContent = "#" + ticket.id + " — " + ticket.title + " [" + ticket.status + "]";
+                        ticketList.appendChild(li);
+                    });
+                }
+            } else {
+                message.textContent = "Could not load tickets (are you logged in?).";
+            }
+        }
+
+        loadTickets();
+    </script>
+</body>
+</html>

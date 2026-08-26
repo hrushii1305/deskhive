@@ -38,7 +38,7 @@
                     // Build a list item for each ticket
                     tickets.forEach(function (ticket) {
                         const li = document.createElement("li");
-                        li.textContent = "#" + ticket.id + " — " + ticket.title + " [" + ticket.status + "]";
+                        li.innerHTML = '<a href="/tickets/' + ticket.id + '/">#' + ticket.id + ' — ' + ticket.title + ' [' + ticket.status + ']</a>';
                         ticketList.appendChild(li);
                     });
                 }
@@ -48,6 +48,25 @@
         }
 
         loadTickets();
+                // Handle the Claim button
+        const claimBtn = document.getElementById("claimBtn");
+        claimBtn.addEventListener("click", async function () {
+            const claimMessage = document.getElementById("claimMessage");
+
+            const response = await fetch("/api/tickets/" + ticketId + "/claim/", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + token }
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                claimMessage.textContent = "✅ " + data.detail + " (assigned to " + data.assigned_to + ")";
+                loadTicket();  // reload to show the updated status
+            } else {
+                claimMessage.textContent = "⚠️ " + data.detail;
+            }
+        });
     </script>
 </body>
 </html>

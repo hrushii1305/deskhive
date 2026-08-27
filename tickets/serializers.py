@@ -16,6 +16,8 @@ class TicketSerializer(serializers.ModelSerializer):
         
         
 class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.StringRelatedField(read_only=True)
+    
     class Meta:
         model = Comment
         fields = ['id', 'ticket', 'author', 'body', 'created_at']

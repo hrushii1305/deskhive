@@ -12,25 +12,26 @@
     <button id="claimBtn">Claim this ticket</button>
     <p id="claimMessage"></p>
 
+    <h2>Comments</h2>
+    <ul id="commentList"></ul>
+
+    <textarea id="commentBody" placeholder="Write a comment..." rows="3" cols="40"></textarea><br>
+    <button id="addCommentBtn">Add comment</button>
+    <p id="commentMessage"></p>
+
     <script>
-        // Read the token we stored at login
         const token = localStorage.getItem("access");
         if (!token) {
             window.location.href = "/";
         }
 
-        // Read the ticket ID from the URL.
-        // URL looks like /tickets/6/  →  split by "/" gives ["", "tickets", "6", ""]
-        // so the ID is the 3rd piece (index 2).
         const parts = window.location.pathname.split("/");
         const ticketId = parts[2];
 
-        // Load and display the ticket's details
         async function loadTicket() {
             const response = await fetch("/api/tickets/" + ticketId + "/", {
                 headers: { "Authorization": "Bearer " + token }
             });
-
             if (response.ok) {
                 const ticket = await response.json();
                 document.getElementById("ticketTitle").textContent =
@@ -43,26 +44,64 @@
                 document.getElementById("ticketTitle").textContent = "Could not load ticket.";
             }
         }
-
         loadTicket();
 
-        // Handle the Claim button
         const claimBtn = document.getElementById("claimBtn");
         claimBtn.addEventListener("click", async function () {
             const claimMessage = document.getElementById("claimMessage");
-
             const response = await fetch("/api/tickets/" + ticketId + "/claim/", {
                 method: "POST",
                 headers: { "Authorization": "Bearer " + token }
             });
-
             const data = await response.json();
-
             if (response.ok) {
                 claimMessage.textContent = "✅ " + data.detail + " (assigned to " + data.assigned_to + ")";
-                loadTicket();  // reload to show the updated status
+                loadTicket();
             } else {
                 claimMessage.textContent = "⚠️ " + data.detail;
+            }
+        });
+
+        async function loadComments() {
+            const response = await fetch("/api/tickets/" + ticketId + "/comments/", {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            const commentList = document.getElementById("commentList");
+            commentList.innerHTML = "";
+            if (response.ok) {
+                const comments = await response.json();
+                if (comments.length === 0) {
+                    commentList.innerHTML = "<li><em>No comments yet.</em></li>";
+                } else {
+                    comments.forEach(function (comment) {
+                        const li = document.createElement("li");
+                        li.textContent = comment.author + ": " + comment.body;
+                        commentList.appendChild(li);
+                    });
+                }
+            }
+        }
+        loadComments();
+
+        const addCommentBtn = document.getElementById("addCommentBtn");
+        addCommentBtn.addEventListener("click", async function () {
+            const body = document.getElementById("commentBody").value;
+            const commentMessage = document.getElementById("commentMessage");
+            const response = await fetch("/api/tickets/" + ticketId + "/comments/", {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + token,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ body: body })
+            });
+            if (response.ok) {
+                document.getElementById("commentBody").value = "";
+                commentMessage.textContent = "Comment added.";
+                loadComments();
+            } else {
+                const data = await response.json();
+                commentMessage.textContent = "Failed: " + JSON.stringify(data);
             }
         });
     </script>

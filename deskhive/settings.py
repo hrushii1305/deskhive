@@ -110,7 +110,8 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'      # where collectstatic gathers files
+STATIC_ROOT = BASE_DIR / 'staticfiles'     # where collectstatic gathers files
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # WhiteNoise compressed static storage for production
 STORAGES = {

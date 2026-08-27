@@ -42,7 +42,7 @@
                 localStorage.setItem("access", data.access);
                 localStorage.setItem("refresh", data.refresh);
                 message.textContent = "Login successful! Redirecting...";
-   window.location.href = "/tickets/";
+                window.location.href = "/tickets/";
             } else {
                 // Login failed — show the error
                 message.textContent = "Login failed: " + (data.detail || "check your credentials");

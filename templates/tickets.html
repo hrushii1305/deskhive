@@ -8,6 +8,7 @@
 </head>
 <body>
     <h1>My Tickets</h1>
+    <button id="logoutBtn">Log out</button>
     <p id="message"></p>
     <ul id="ticketList"></ul>
 
@@ -47,6 +48,16 @@
             } else {
                 message.textContent = "Could not load tickets (are you logged in?).";
             }
+        }
+
+                // Handle logout
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", function () {
+                localStorage.removeItem("access");
+                localStorage.removeItem("refresh");
+                window.location.href = "/";
+            });
         }
 
         loadTickets();

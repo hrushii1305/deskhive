@@ -8,6 +8,7 @@
 </head>
 <body>
     <a href="/tickets/">&larr; Back to tickets</a>
+    <button id="logoutBtn">Log out</button>
     <h1 id="ticketTitle">Loading...</h1>
     <p id="ticketDetails"></p>
 
@@ -63,6 +64,16 @@
                 claimMessage.textContent = "⚠️ " + data.detail;
             }
         });
+
+                // Handle logout
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", function () {
+                localStorage.removeItem("access");
+                localStorage.removeItem("refresh");
+                window.location.href = "/";
+            });
+        }
 
         async function loadComments() {
             const response = await fetch("/api/tickets/" + ticketId + "/comments/", {

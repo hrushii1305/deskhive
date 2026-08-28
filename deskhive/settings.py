@@ -6,6 +6,7 @@ import os
 import dj_database_url
 from pathlib import Path
 from dotenv import load_dotenv
+import sys
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -143,3 +144,7 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Multi-tenant helpdesk SaaS — REST API',
     'VERSION': '1.0.0',
 }
+
+if 'test' in sys.argv or 'pytest' in sys.modules:
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True

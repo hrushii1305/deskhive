@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound
-from .models import Ticket, Comment
+from .models import Ticket, Comment, TicketAuditLog
 from .services import get_least_loaded_agent
 from .serializers import TicketSerializer, CommentSerializer
 from .tasks import send_ticket_created_email, send_ticket_assigned_email
@@ -54,6 +54,7 @@ class TicketClaimView(APIView):
     (select_for_update inside a transaction) so two agents claiming the
     same ticket at the same instant can't both succeed — the second one
     waits for the first to commit, then sees it's taken and is refused.
+    Every successful claim also writes an immutable audit-log entry.
     """
     permission_classes = [IsAuthenticated]
 
@@ -80,9 +81,26 @@ class TicketClaimView(APIView):
                     status=status.HTTP_409_CONFLICT,
                 )
 
+            # Capture the OLD status BEFORE changing it, so the audit
+            # entry records the real transition (open -> in_progress).
+            old_status = ticket.status
+
             ticket.assigned_to = member
             ticket.status = 'in_progress'
             ticket.save()
+
+            # Write an immutable audit entry. It lives inside the same
+            # transaction as the claim, so if the claim rolls back the
+            # audit entry rolls back too — the log never records a claim
+            # that didn't actually happen. We only ever create these,
+            # never update or delete them (append-only = immutable).
+            TicketAuditLog.objects.create(
+                ticket=ticket,
+                actor=member,
+                action='claimed',
+                old_value=old_status,
+                new_value=ticket.status,
+            )
 
         # Notify the newly-assigned agent, consistent with perform_create above.
         send_ticket_assigned_email.delay(ticket.id)

@@ -67,3 +67,28 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author} on ticket {self.ticket_id}"
+    
+    
+class TicketAuditLog(models.Model):
+    ticket = models.ForeignKey(
+        Ticket,
+        on_delete=models.CASCADE,
+        related_name='audit_logs'
+    )
+    actor = models.ForeignKey(
+        Member,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='audit_actions'
+    )
+    action = models.CharField(max_length=50)       # e.g. "status_changed", "claimed"
+    old_value = models.CharField(max_length=255, blank=True)
+    new_value = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']   # newest first
+
+    def __str__(self):
+        return f"{self.action} on ticket {self.ticket_id} by {self.actor}"

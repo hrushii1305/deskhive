@@ -108,3 +108,73 @@ def test_owner_sees_all_org_tickets(client, owner_a, tickets_a):
 
     assert response.status_code == 200
     assert len(response.data) == 2
+    
+    
+# ---------- Claim + Audit Log fixtures ----------
+
+@pytest.fixture
+def agent_a(db, org_a):
+    user = User.objects.create_user(username="agent_a", password="pass12345")
+    return Member.objects.create(
+        user=user, organization=org_a,
+        name="Agent A", email="agent_a@a.com", role="agent",
+    )
+
+
+@pytest.fixture
+def unclaimed_ticket_a(db, org_a, customer_a):
+    """An open, unassigned ticket in Org A, ready to be claimed."""
+    return Ticket.objects.create(
+        organization=org_a,
+        title="A - unclaimed",
+        description="needs an agent",
+        requester=customer_a,
+        status="open",
+    )
+
+
+# ---------- Claim + Audit Log tests ----------
+
+@pytest.mark.django_db
+def test_agent_can_claim_unassigned_ticket(client, agent_a, unclaimed_ticket_a):
+    """Claiming an open ticket returns 200 and assigns it to the agent."""
+    client.force_authenticate(user=agent_a.user)
+    response = client.post(f"/api/tickets/{unclaimed_ticket_a.id}/claim/")
+
+    assert response.status_code == 200
+
+    unclaimed_ticket_a.refresh_from_db()
+    assert unclaimed_ticket_a.assigned_to == agent_a
+    assert unclaimed_ticket_a.status == "in_progress"
+
+
+@pytest.mark.django_db
+def test_claiming_already_claimed_ticket_returns_409(client, agent_a, unclaimed_ticket_a):
+    """A second claim on the same ticket is refused with 409 (locking guard)."""
+    client.force_authenticate(user=agent_a.user)
+
+    # first claim succeeds
+    first = client.post(f"/api/tickets/{unclaimed_ticket_a.id}/claim/")
+    assert first.status_code == 200
+
+    # second claim on the now-claimed ticket is refused
+    second = client.post(f"/api/tickets/{unclaimed_ticket_a.id}/claim/")
+    assert second.status_code == 409
+
+
+@pytest.mark.django_db
+def test_claiming_writes_audit_log_entry(client, agent_a, unclaimed_ticket_a):
+    """A successful claim creates exactly one immutable audit-log entry."""
+    from tickets.models import TicketAuditLog
+
+    client.force_authenticate(user=agent_a.user)
+    client.post(f"/api/tickets/{unclaimed_ticket_a.id}/claim/")
+
+    entries = TicketAuditLog.objects.filter(ticket=unclaimed_ticket_a)
+    assert entries.count() == 1
+
+    entry = entries.first()
+    assert entry.action == "claimed"
+    assert entry.actor == agent_a
+    assert entry.old_value == "open"
+    assert entry.new_value == "in_progress"

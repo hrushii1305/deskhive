@@ -178,3 +178,43 @@ def test_claiming_writes_audit_log_entry(client, agent_a, unclaimed_ticket_a):
     assert entry.actor == agent_a
     assert entry.old_value == "open"
     assert entry.new_value == "in_progress"
+    
+
+@pytest.mark.django_db
+def test_auto_assignment_writes_audit_log(client, org_a, agent_a, customer_a):
+    """Creating a ticket auto-assigns it to an agent and logs that assignment."""
+    from tickets.models import TicketAuditLog
+
+    # customer creates a ticket; with an agent in the org, it auto-assigns
+    client.force_authenticate(user=customer_a.user)
+    response = client.post("/api/tickets/", {
+        "title": "New ticket",
+        "description": "please help",
+    })
+    assert response.status_code == 201
+
+    ticket_id = response.data["id"]
+    entries = TicketAuditLog.objects.filter(ticket_id=ticket_id, action="auto_assigned")
+    assert entries.count() == 1
+    assert entries.first().new_value == str(agent_a)
+
+
+@pytest.mark.django_db
+def test_status_change_writes_audit_log(client, org_a, owner_a, unclaimed_ticket_a):
+    """Updating a ticket's status writes a status_changed audit entry."""
+    from tickets.models import TicketAuditLog
+
+    client.force_authenticate(user=owner_a.user)
+    response = client.patch(
+        f"/api/tickets/{unclaimed_ticket_a.id}/",
+        {"status": "resolved"},
+    )
+    assert response.status_code == 200
+
+    entries = TicketAuditLog.objects.filter(
+        ticket=unclaimed_ticket_a, action="status_changed"
+    )
+    assert entries.count() == 1
+    entry = entries.first()
+    assert entry.old_value == "open"
+    assert entry.new_value == "resolved"

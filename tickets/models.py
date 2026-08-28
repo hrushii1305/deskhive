@@ -33,7 +33,7 @@ class Ticket(models.Model):
         blank=True,
         related_name='assigned_tickets'
     )
-    
+
     requester = models.ForeignKey(
         Member,
         on_delete=models.SET_NULL,
@@ -47,8 +47,8 @@ class Ticket(models.Model):
 
     def __str__(self):
         return f"[{self.status}] {self.title}"
-    
-    
+
+
 class Comment(models.Model):
     ticket = models.ForeignKey(
         Ticket,
@@ -67,8 +67,8 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author} on ticket {self.ticket_id}"
-    
-    
+
+
 class TicketAuditLog(models.Model):
     ticket = models.ForeignKey(
         Ticket,
@@ -92,3 +92,21 @@ class TicketAuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} on ticket {self.ticket_id} by {self.actor}"
+
+
+def log_ticket_action(ticket, actor, action, old_value="", new_value=""):
+    """
+    Write an immutable audit-log entry for a ticket action.
+
+    Central helper so every view records audit events the same way —
+    if the audit format ever changes, it changes in one place, not many.
+    Entries are only ever created here, never updated or deleted
+    (append-only = immutable).
+    """
+    TicketAuditLog.objects.create(
+        ticket=ticket,
+        actor=actor,
+        action=action,
+        old_value=str(old_value),
+        new_value=str(new_value),
+    )

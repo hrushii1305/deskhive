@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound
-from .models import Ticket, Comment, TicketAuditLog
+from .models import Ticket, Comment, TicketAuditLog, log_ticket_action
 from .services import get_least_loaded_agent
 from .serializers import TicketSerializer, CommentSerializer
 from .tasks import send_ticket_created_email, send_ticket_assigned_email
@@ -29,6 +29,15 @@ class TicketListCreateView(generics.ListCreateAPIView):
             requester=member,
             assigned_to=agent,
         )
+        # Log the auto-assignment as an audit event (only if an agent was assigned).
+        if agent:
+            log_ticket_action(
+                ticket=ticket,
+                actor=member,
+                action='auto_assigned',
+                old_value='unassigned',
+                new_value=str(agent),
+            )
         send_ticket_created_email.delay(ticket.id)
         if agent:
             send_ticket_assigned_email.delay(ticket.id)
@@ -44,6 +53,21 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
         if member.role == 'customer':
             return org_tickets.filter(requester=member)
         return org_tickets
+
+    def perform_update(self, serializer):
+        # Capture the old status BEFORE the update is applied.
+        # serializer.instance is the ticket as it currently exists in the DB.
+        old_status = serializer.instance.status
+        ticket = serializer.save()
+        # Only log if the status actually changed (no point logging open -> open).
+        if old_status != ticket.status:
+            log_ticket_action(
+                ticket=ticket,
+                actor=self.request.user.member,
+                action='status_changed',
+                old_value=old_status,
+                new_value=ticket.status,
+            )
 
 
 class TicketClaimView(APIView):
@@ -89,12 +113,9 @@ class TicketClaimView(APIView):
             ticket.status = 'in_progress'
             ticket.save()
 
-            # Write an immutable audit entry. It lives inside the same
-            # transaction as the claim, so if the claim rolls back the
-            # audit entry rolls back too — the log never records a claim
-            # that didn't actually happen. We only ever create these,
-            # never update or delete them (append-only = immutable).
-            TicketAuditLog.objects.create(
+            # Immutable audit entry, inside the same transaction as the claim,
+            # so it rolls back with the claim if anything fails.
+            log_ticket_action(
                 ticket=ticket,
                 actor=member,
                 action='claimed',

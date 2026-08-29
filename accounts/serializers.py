@@ -81,3 +81,46 @@ class CustomerRegisterSerializer(serializers.Serializer):
                 role='customer',        # ← FORCED server-side, never from the client
             )
         return member
+    
+    
+    
+class AgentJoinRequestSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    email = serializers.EmailField()
+    name = serializers.CharField()
+    organization_id = serializers.IntegerField()
+
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username already taken.")
+        return value
+
+    def validate_organization_id(self, value):
+        if not Organization.objects.filter(id=value, is_active=True).exists():
+            raise serializers.ValidationError("Organization not found.")
+        return value
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=validated_data['username'],
+                password=validated_data['password'],
+                email=validated_data['email'],
+            )
+            org = Organization.objects.get(id=validated_data['organization_id'])
+            member = Member.objects.create(
+                user=user,
+                organization=org,
+                name=validated_data['name'],
+                email=validated_data['email'],
+                role='agent',           # forced: this is an agent request
+                status='pending',       # forced: must be approved by the owner
+            )
+        return member
+    
+class PendingAgentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Member
+        fields = ['id', 'name', 'email', 'role', 'status', 'created_at']
+        read_only_fields = fields

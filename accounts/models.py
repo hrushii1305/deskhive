@@ -10,6 +10,12 @@ class Member(models.Model):
         ('customer', 'Customer'),
     ]
 
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),      # agent has requested to join, awaiting owner approval
+        ('approved', 'Approved'),    # active member
+        ('rejected', 'Rejected'),    # owner declined the request
+    ]
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -25,6 +31,7 @@ class Member(models.Model):
     name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='agent')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='approved')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -39,6 +46,9 @@ class Member(models.Model):
 
     def is_customer(self):
         return self.role == 'customer'
+
+    def is_approved(self):
+        return self.status == 'approved'
 
     def can_manage_members(self):
         return self.role == 'owner'

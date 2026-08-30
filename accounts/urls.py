@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     RegisterView, CustomerRegisterView, AgentJoinRequestView,
-    PendingAgentListView, ApproveAgentView, RejectAgentView,
+    PendingAgentListView, ApproveAgentView, RejectAgentView, MeView
 )
 
 urlpatterns = [
@@ -11,4 +11,5 @@ urlpatterns = [
     path('pending-agents/', PendingAgentListView.as_view(), name='pending-agents'),
     path('pending-agents/<int:member_id>/approve/', ApproveAgentView.as_view(), name='approve-agent'),
     path('pending-agents/<int:member_id>/reject/', RejectAgentView.as_view(), name='reject-agent'),
+    path('me/', MeView.as_view(), name='me'),
 ]

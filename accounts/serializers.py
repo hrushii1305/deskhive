@@ -134,3 +134,10 @@ class PendingAgentSerializer(serializers.ModelSerializer):
         model = Member
         fields = ['id', 'name', 'email', 'role', 'status', 'created_at']
         read_only_fields = fields
+        
+        
+class MeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Member
+        fields = ['id', 'name', 'email', 'role', 'status']
+        read_only_fields = fields

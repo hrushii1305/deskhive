@@ -9,6 +9,7 @@
 <body>
     <h1>My Tickets</h1>
     <button id="logoutBtn">Log out</button>
+    <a href="/approvals/" id="approvalsLink" style="display:none;">Pending Approvals</a>
     <p id="message"></p>
     <ul id="ticketList"></ul>
 
@@ -38,7 +39,6 @@
                 if (tickets.length === 0) {
                     message.textContent = "No tickets yet.";
                 } else {
-                    // Build a list item for each ticket
                     tickets.forEach(function (ticket) {
                         const li = document.createElement("li");
                         li.innerHTML = '<a href="/tickets/' + ticket.id + '/">#' + ticket.id + ' — ' + ticket.title + ' [' + ticket.status + ']</a>';
@@ -49,8 +49,23 @@
                 message.textContent = "Could not load tickets (are you logged in?).";
             }
         }
+        loadTickets();
 
-                // Handle logout
+        // Show the Approvals link only for owners (role-aware UI)
+        async function checkRole() {
+            const response = await fetch("/api/me/", {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            if (response.ok) {
+                const me = await response.json();
+                if (me.role === "owner") {
+                    document.getElementById("approvalsLink").style.display = "inline";
+                }
+            }
+        }
+        checkRole();
+
+        // Handle logout
         const logoutBtn = document.getElementById("logoutBtn");
         if (logoutBtn) {
             logoutBtn.addEventListener("click", function () {
@@ -59,27 +74,6 @@
                 window.location.href = "/";
             });
         }
-
-        loadTickets();
-                // Handle the Claim button
-        const claimBtn = document.getElementById("claimBtn");
-        claimBtn.addEventListener("click", async function () {
-            const claimMessage = document.getElementById("claimMessage");
-
-            const response = await fetch("/api/tickets/" + ticketId + "/claim/", {
-                method: "POST",
-                headers: { "Authorization": "Bearer " + token }
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                claimMessage.textContent = "✅ " + data.detail + " (assigned to " + data.assigned_to + ")";
-                loadTicket();  // reload to show the updated status
-            } else {
-                claimMessage.textContent = "⚠️ " + data.detail;
-            }
-        });
     </script>
 </body>
 </html>

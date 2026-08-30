@@ -1,4 +1,4 @@
-from .serializers import RegisterSerializer, CustomerRegisterSerializer, AgentJoinRequestSerializer, PendingAgentSerializer  # update this import
+from .serializers import RegisterSerializer, CustomerRegisterSerializer, AgentJoinRequestSerializer, PendingAgentSerializer, MeSerializer  # update this import
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -170,3 +170,18 @@ class RejectAgentView(APIView):
             {"detail": f"{agent.name} rejected.", "status": agent.status},
             status=status.HTTP_200_OK,
         )
+        
+        
+
+class MeView(generics.RetrieveAPIView):
+    """
+    GET /api/me/
+
+    Returns the currently authenticated user's member info (role, status, etc.)
+    so the frontend can render role-aware UI.
+    """
+    serializer_class = MeSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.member

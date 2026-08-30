@@ -7,12 +7,13 @@ from rest_framework.exceptions import NotFound
 from .models import Ticket, Comment, TicketAuditLog, log_ticket_action
 from .services import get_least_loaded_agent
 from .serializers import TicketSerializer, CommentSerializer
+from accounts.permissions import IsApprovedMember
 from .tasks import send_ticket_created_email, send_ticket_assigned_email
 
 
 class TicketListCreateView(generics.ListCreateAPIView):
     serializer_class = TicketSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsApprovedMember]
 
     def get_queryset(self):
         member = self.request.user.member
@@ -45,7 +46,7 @@ class TicketListCreateView(generics.ListCreateAPIView):
 
 class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TicketSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsApprovedMember]
 
     def get_queryset(self):
         member = self.request.user.member
@@ -80,7 +81,7 @@ class TicketClaimView(APIView):
     waits for the first to commit, then sees it's taken and is refused.
     Every successful claim also writes an immutable audit-log entry.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsApprovedMember]
 
     def post(self, request, ticket_id):
         member = request.user.member
@@ -134,7 +135,7 @@ class TicketClaimView(APIView):
 
 class CommentListCreateView(generics.ListCreateAPIView):
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsApprovedMember]
 
     def get_ticket(self):
         member = self.request.user.member

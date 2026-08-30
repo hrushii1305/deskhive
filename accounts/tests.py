@@ -122,3 +122,116 @@ def test_customer_registration_rejects_nonexistent_org(client):
     }, format="json")
 
     assert response.status_code == 400   # validation error
+    
+    
+    
+    
+# ---------- Agent approval workflow tests ----------
+
+@pytest.fixture
+def owner_and_org(db):
+    org = Organization.objects.create(name="Approval Org", slug="approval-org")
+    user = User.objects.create_user(username="approwner", password="pass12345")
+    owner = Member.objects.create(
+        user=user, organization=org,
+        name="Appr Owner", email="approwner@x.com",
+        role="owner", status="approved",
+    )
+    return owner, org
+
+
+@pytest.fixture
+def pending_agent(db, owner_and_org):
+    _, org = owner_and_org
+    user = User.objects.create_user(username="pendagent", password="pass12345")
+    return Member.objects.create(
+        user=user, organization=org,
+        name="Pending Agent", email="pendagent@x.com",
+        role="agent", status="pending",
+    )
+
+
+@pytest.mark.django_db
+def test_agent_join_request_creates_pending_agent(client, owner_and_org):
+    """An agent join request creates a member with role=agent, status=pending."""
+    _, org = owner_and_org
+    response = client.post("/api/register/agent/", {
+        "username": "newagent",
+        "password": "pass12345",
+        "email": "newagent@x.com",
+        "name": "New Agent",
+        "organization_id": org.id,
+    }, format="json")
+
+    assert response.status_code == 201
+    assert response.data["role"] == "agent"
+    assert response.data["status"] == "pending"
+
+    member = Member.objects.get(user__username="newagent")
+    assert member.role == "agent"
+    assert member.status == "pending"
+
+
+@pytest.mark.django_db
+def test_owner_can_list_and_approve_pending_agent(client, owner_and_org, pending_agent):
+    """Owner lists pending agents in their org and approves one."""
+    owner, _ = owner_and_org
+    client.force_authenticate(user=owner.user)
+
+    # list
+    r = client.get("/api/pending-agents/")
+    assert r.status_code == 200
+    assert len(r.data) == 1
+    assert r.data[0]["id"] == pending_agent.id
+
+    # approve
+    r = client.post(f"/api/pending-agents/{pending_agent.id}/approve/")
+    assert r.status_code == 200
+
+    pending_agent.refresh_from_db()
+    assert pending_agent.status == "approved"
+
+
+@pytest.mark.django_db
+def test_owner_cannot_approve_agent_in_another_org(client, pending_agent, db):
+    """
+    SECURITY: an owner of a DIFFERENT org cannot approve this pending agent.
+    Tenant isolation on the approval endpoint.
+    """
+    # a second org with its own owner
+    other_org = Organization.objects.create(name="Other Org", slug="other-org")
+    other_user = User.objects.create_user(username="otherowner", password="pass12345")
+    other_owner = Member.objects.create(
+        user=other_user, organization=other_org,
+        name="Other Owner", email="otherowner@x.com",
+        role="owner", status="approved",
+    )
+
+    client.force_authenticate(user=other_owner.user)
+    r = client.post(f"/api/pending-agents/{pending_agent.id}/approve/")
+
+    assert r.status_code == 404          # can't even see it — not in their org
+    pending_agent.refresh_from_db()
+    assert pending_agent.status == "pending"   # unchanged
+
+
+@pytest.mark.django_db
+def test_non_owner_cannot_access_pending_agents(client, pending_agent):
+    """SECURITY: a non-owner (the pending agent themselves) can't list pending agents."""
+    client.force_authenticate(user=pending_agent.user)
+    r = client.get("/api/pending-agents/")
+    assert r.status_code == 403          # not an owner
+
+
+@pytest.mark.django_db
+def test_pending_agent_blocked_from_tickets(client, pending_agent):
+    """SECURITY: a pending agent cannot access tickets until approved."""
+    client.force_authenticate(user=pending_agent.user)
+    r = client.get("/api/tickets/")
+    assert r.status_code == 403          # access guard blocks pending
+
+    # after approval, they get in
+    pending_agent.status = "approved"
+    pending_agent.save()
+    r = client.get("/api/tickets/")
+    assert r.status_code == 200

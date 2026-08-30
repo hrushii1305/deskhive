@@ -235,3 +235,31 @@ def test_pending_agent_blocked_from_tickets(client, pending_agent):
     pending_agent.save()
     r = client.get("/api/tickets/")
     assert r.status_code == 200
+    
+    
+@pytest.mark.django_db
+def test_registration_rejects_duplicate_email(client, existing_org):
+    """
+    A second signup with an already-registered email returns a clean 400,
+    not a 500 crash (Member.email is unique).
+    """
+    # first customer registers with an email
+    r1 = client.post("/api/register/customer/", {
+        "username": "firstuser",
+        "password": "pass12345",
+        "email": "dupe@example.com",
+        "name": "First User",
+        "organization_id": existing_org.id,
+    }, format="json")
+    assert r1.status_code == 201
+
+    # second signup reuses the same email -> clean validation error
+    r2 = client.post("/api/register/customer/", {
+        "username": "seconduser",
+        "password": "pass12345",
+        "email": "dupe@example.com",       # duplicate
+        "name": "Second User",
+        "organization_id": existing_org.id,
+    }, format="json")
+    assert r2.status_code == 400          # not 500 — validation caught it
+    assert "email" in r2.data

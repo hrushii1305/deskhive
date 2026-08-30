@@ -1,0 +1,90 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DeskHive — Pending Approvals</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+    <a href="/tickets/">&larr; Back to tickets</a>
+    <button id="logoutBtn">Log out</button>
+
+    <h1>Pending Agent Requests</h1>
+    <p id="message"></p>
+    <ul id="pendingList"></ul>
+
+    <script>
+        const token = localStorage.getItem("access");
+        if (!token) {
+            window.location.href = "/";
+        }
+
+        // Load pending agent requests (owner-only endpoint)
+        async function loadPending() {
+            const response = await fetch("/api/pending-agents/", {
+                headers: { "Authorization": "Bearer " + token }
+            });
+
+            const message = document.getElementById("message");
+            const list = document.getElementById("pendingList");
+            list.innerHTML = "";
+
+            if (response.status === 403) {
+                message.textContent = "Only owners can view pending requests.";
+                return;
+            }
+
+            if (response.ok) {
+                const agents = await response.json();
+                if (agents.length === 0) {
+                    message.textContent = "No pending requests.";
+                    return;
+                }
+                message.textContent = "";
+                agents.forEach(function (agent) {
+                    const li = document.createElement("li");
+                    li.textContent = agent.name + " (" + agent.email + ") ";
+
+                    const approveBtn = document.createElement("button");
+                    approveBtn.textContent = "Approve";
+                    approveBtn.onclick = function () { decide(agent.id, "approve"); };
+
+                    const rejectBtn = document.createElement("button");
+                    rejectBtn.textContent = "Reject";
+                    rejectBtn.onclick = function () { decide(agent.id, "reject"); };
+
+                    li.appendChild(approveBtn);
+                    li.appendChild(rejectBtn);
+                    list.appendChild(li);
+                });
+            } else {
+                message.textContent = "Could not load pending requests.";
+            }
+        }
+
+        // Approve or reject an agent, then reload the list
+        async function decide(agentId, action) {
+            const response = await fetch("/api/pending-agents/" + agentId + "/" + action + "/", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + token }
+            });
+            if (response.ok) {
+                loadPending();  // refresh — the decided agent drops off the list
+            } else {
+                document.getElementById("message").textContent = "Action failed.";
+            }
+        }
+
+        loadPending();
+
+        // Logout
+        const logoutBtn = document.getElementById("logoutBtn");
+        logoutBtn.addEventListener("click", function () {
+            localStorage.removeItem("access");
+            localStorage.removeItem("refresh");
+            window.location.href = "/";
+        });
+    </script>
+</body>
+</html>

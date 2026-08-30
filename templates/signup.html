@@ -1,0 +1,87 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DeskHive — Sign Up</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+    <h1>Join DeskHive</h1>
+
+    <input type="text" id="username" placeholder="Username"><br>
+    <input type="password" id="password" placeholder="Password (min 8 chars)"><br>
+    <input type="email" id="email" placeholder="Email"><br>
+    <input type="text" id="name" placeholder="Your full name"><br>
+
+    <label for="organization">Organization:</label>
+    <select id="organization"></select><br>
+
+    <label for="role">I am a:</label>
+    <select id="role">
+        <option value="customer">Customer (raise tickets — immediate access)</option>
+        <option value="agent">Agent (work tickets — needs owner approval)</option>
+    </select><br>
+
+    <button id="signupBtn">Sign up</button>
+    <p id="message"></p>
+    <p><a href="/">Already have an account? Log in</a></p>
+
+    <script>
+        // Load the list of organizations into the dropdown
+        async function loadOrganizations() {
+            const response = await fetch("/api/organizations/");
+            const orgs = await response.json();
+            const select = document.getElementById("organization");
+            orgs.forEach(function (org) {
+                const option = document.createElement("option");
+                option.value = org.id;
+                option.textContent = org.name;
+                select.appendChild(option);
+            });
+        }
+        loadOrganizations();
+
+        // Handle signup
+        const signupBtn = document.getElementById("signupBtn");
+        signupBtn.addEventListener("click", async function () {
+            const message = document.getElementById("message");
+            const role = document.getElementById("role").value;
+
+            // choose the endpoint based on the selected role
+            const endpoint = role === "agent"
+                ? "/api/register/agent/"
+                : "/api/register/customer/";
+
+            const payload = {
+                username: document.getElementById("username").value,
+                password: document.getElementById("password").value,
+                email: document.getElementById("email").value,
+                name: document.getElementById("name").value,
+                organization_id: document.getElementById("organization").value,
+            };
+
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                if (role === "agent") {
+                    // agents wait for approval
+                    window.location.href = "/pending/";
+                } else {
+                    // customers can log in immediately
+                    message.textContent = "Account created! Redirecting to login...";
+                    window.location.href = "/";
+                }
+            } else {
+                message.textContent = "Sign up failed: " + JSON.stringify(data);
+            }
+        });
+    </script>
+</body>
+</html>

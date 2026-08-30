@@ -53,6 +53,11 @@ class CustomerRegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     name = serializers.CharField()
     organization_id = serializers.IntegerField()
+    
+    def validate_email(self, value):
+            if Member.objects.filter(email=value).exists():
+                raise serializers.ValidationError("Email already registered.")
+            return value
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
@@ -90,6 +95,11 @@ class AgentJoinRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
     name = serializers.CharField()
     organization_id = serializers.IntegerField()
+    
+    def validate_email(self, value):
+            if Member.objects.filter(email=value).exists():
+                raise serializers.ValidationError("Email already registered.")
+            return value
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():

@@ -69,7 +69,10 @@ class AgentJoinRequestView(generics.CreateAPIView):
         member = serializer.save()
 
         # notify the org owner (async, via Celery)
-        send_agent_request_email.delay(member.id)
+        try:
+            send_agent_request_email.delay(member.id)
+        except Exception:
+                pass  # email notification is best-effort; don't fail the request if the broker is down
         
         return Response(
             {

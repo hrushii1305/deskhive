@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/', include('tickets.urls')),
     path('api/', include('organizations.urls')),
     path('api/', include('accounts.urls')),
+    path('register-owner/', TemplateView.as_view(template_name='register_owner.html'), name='register-owner-page'),
     path('approvals/', TemplateView.as_view(template_name='approvals.html'), name='approvals-page'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

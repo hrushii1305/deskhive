@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DeskHive — Create Organization</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+    <h1>Create your organization</h1>
+    <p>Start a new organization on DeskHive. You'll be its owner.</p>
+
+    <input type="text" id="username" placeholder="Username"><br>
+    <input type="password" id="password" placeholder="Password (min 8 chars)"><br>
+    <input type="email" id="email" placeholder="Email"><br>
+    <input type="text" id="name" placeholder="Your full name"><br>
+    <input type="text" id="organization_name" placeholder="Organization name"><br>
+
+    <button id="registerBtn">Create organization</button>
+    <p id="message"></p>
+    <p><a href="/signup/">Joining an existing organization instead? Sign up here</a></p>
+    <p><a href="/">Already have an account? Log in</a></p>
+
+    <script>
+        const registerBtn = document.getElementById("registerBtn");
+
+        registerBtn.addEventListener("click", async function () {
+            const message = document.getElementById("message");
+
+            const payload = {
+                username: document.getElementById("username").value,
+                password: document.getElementById("password").value,
+                email: document.getElementById("email").value,
+                name: document.getElementById("name").value,
+                organization_name: document.getElementById("organization_name").value,
+            };
+
+            const response = await fetch("/api/register/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                message.textContent = "Organization created! Redirecting to login...";
+                window.location.href = "/";
+            } else {
+                message.textContent = "Registration failed: " + JSON.stringify(data);
+            }
+        });
+    </script>
+</body>
+</html>

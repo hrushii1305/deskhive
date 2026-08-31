@@ -65,6 +65,34 @@
             }
         });
 
+
+                // --- Real-time comments via WebSocket ---
+        // Build the WebSocket URL. ws:// for http, wss:// for https (production).
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const socket = new WebSocket(
+            wsProtocol + "//" + window.location.host + "/ws/tickets/" + ticketId + "/"
+        );
+
+        // When a comment arrives over the WebSocket, add it to the list live
+        socket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            const commentList = document.getElementById("commentList");
+
+            // If the "no comments yet" placeholder is showing, clear it first
+            if (commentList.querySelector("em")) {
+                commentList.innerHTML = "";
+            }
+
+            const li = document.createElement("li");
+            li.textContent = data.author + ": " + data.body;
+            commentList.appendChild(li);
+        };
+
+        socket.onclose = function () {
+            console.log("WebSocket closed");
+        };
+        
+
                 // Handle logout
         const logoutBtn = document.getElementById("logoutBtn");
         if (logoutBtn) {

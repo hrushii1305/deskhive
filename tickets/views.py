@@ -153,4 +153,18 @@ class CommentListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         ticket = self.get_ticket()
-        serializer.save(ticket=ticket, author=self.request.user.member)
+        comment = serializer.save(ticket=ticket, author=self.request.user.member)
+
+        # Broadcast the new comment to everyone watching this ticket via WebSocket
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'ticket_{ticket.id}',
+            {
+                'type': 'comment_message',
+                'author': str(comment.author),
+                'body': comment.body,
+            }
+        )

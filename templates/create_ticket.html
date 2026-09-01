@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DeskHive — New Ticket</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+    <a href="/tickets/">&larr; Back to tickets</a>
+    <h1>Raise a New Ticket</h1>
+
+    <input type="text" id="title" placeholder="Title"><br>
+    <textarea id="description" placeholder="Describe your issue..." rows="4" cols="40"></textarea><br>
+
+    <label for="priority">Priority:</label>
+    <select id="priority">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+    </select><br>
+
+    <button id="createBtn">Create ticket</button>
+    <p id="message"></p>
+
+    <script>
+        const token = localStorage.getItem("access");
+        if (!token) {
+            window.location.href = "/";
+        }
+
+        const createBtn = document.getElementById("createBtn");
+        createBtn.addEventListener("click", async function () {
+            const message = document.getElementById("message");
+
+            const payload = {
+                title: document.getElementById("title").value,
+                description: document.getElementById("description").value,
+                priority: document.getElementById("priority").value,
+            };
+
+            const response = await fetch("/api/tickets/", {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + token,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                message.textContent = "Ticket created! Redirecting...";
+                window.location.href = "/tickets/";
+            } else {
+                const data = await response.json();
+                message.textContent = "Failed: " + JSON.stringify(data);
+            }
+        });
+    </script>
+</body>
+</html>

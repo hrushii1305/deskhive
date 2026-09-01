@@ -57,7 +57,6 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         # Capture the old status BEFORE the update is applied.
-        # serializer.instance is the ticket as it currently exists in the DB.
         old_status = serializer.instance.status
         ticket = serializer.save()
         # Only log if the status actually changed (no point logging open -> open).
@@ -75,16 +74,25 @@ class TicketClaimView(APIView):
     """
     POST /api/tickets/<id>/claim/
 
-    Lets an agent claim an unassigned ticket. Uses row-level locking
-    (select_for_update inside a transaction) so two agents claiming the
-    same ticket at the same instant can't both succeed — the second one
-    waits for the first to commit, then sees it's taken and is refused.
-    Every successful claim also writes an immutable audit-log entry.
+    Lets an AGENT (or owner) claim an unassigned ticket. Customers cannot
+    claim tickets. Uses row-level locking (select_for_update inside a
+    transaction) so two agents claiming the same ticket at the same instant
+    can't both succeed — the second one waits for the first to commit, then
+    sees it's taken and is refused. Every successful claim writes an audit entry.
     """
     permission_classes = [IsAuthenticated, IsApprovedMember]
 
     def post(self, request, ticket_id):
         member = request.user.member
+
+        # RBAC: only agents and owners can claim tickets — customers cannot.
+        # Enforced server-side so a customer can't claim by calling the API
+        # directly, even if the UI button is hidden.
+        if member.role not in ('agent', 'owner'):
+            return Response(
+                {"detail": "Only agents can claim tickets."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         with transaction.atomic():
             # Lock this ticket row until the transaction commits.

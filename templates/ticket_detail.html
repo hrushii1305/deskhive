@@ -12,7 +12,7 @@
     <h1 id="ticketTitle">Loading...</h1>
     <p id="ticketDetails"></p>
 
-    <button id="claimBtn">Claim this ticket</button>
+    <button id="claimBtn" style="display:none;">Claim this ticket</button>
     <p id="claimMessage"></p>
 
     <h2>Comments</h2>
@@ -31,6 +31,7 @@
         const parts = window.location.pathname.split("/");
         const ticketId = parts[2];
 
+        // Load the ticket's details
         async function loadTicket() {
             const response = await fetch("/api/tickets/" + ticketId + "/", {
                 headers: { "Authorization": "Bearer " + token }
@@ -49,6 +50,22 @@
         }
         loadTicket();
 
+        // Show the Claim button ONLY for agents/owners (customers can't claim).
+        // This is UX — the real security is the server-side role check on the claim endpoint.
+        async function checkRole() {
+            const response = await fetch("/api/me/", {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            if (response.ok) {
+                const me = await response.json();
+                if (me.role === "agent" || me.role === "owner") {
+                    document.getElementById("claimBtn").style.display = "inline";
+                }
+            }
+        }
+        checkRole();
+
+        // Claim button handler
         const claimBtn = document.getElementById("claimBtn");
         claimBtn.addEventListener("click", async function () {
             const claimMessage = document.getElementById("claimMessage");
@@ -65,44 +82,7 @@
             }
         });
 
-
-                // --- Real-time comments via WebSocket ---
-        // Build the WebSocket URL. ws:// for http, wss:// for https (production).
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const socket = new WebSocket(
-            wsProtocol + "//" + window.location.host + "/ws/tickets/" + ticketId + "/"
-        );
-
-        // When a comment arrives over the WebSocket, add it to the list live
-        socket.onmessage = function (event) {
-            const data = JSON.parse(event.data);
-            const commentList = document.getElementById("commentList");
-
-            // If the "no comments yet" placeholder is showing, clear it first
-            if (commentList.querySelector("em")) {
-                commentList.innerHTML = "";
-            }
-
-            const li = document.createElement("li");
-            li.textContent = data.author + ": " + data.body;
-            commentList.appendChild(li);
-        };
-
-        socket.onclose = function () {
-            console.log("WebSocket closed");
-        };
-        
-
-                // Handle logout
-        const logoutBtn = document.getElementById("logoutBtn");
-        if (logoutBtn) {
-            logoutBtn.addEventListener("click", function () {
-                localStorage.removeItem("access");
-                localStorage.removeItem("refresh");
-                window.location.href = "/";
-            });
-        }
-
+        // Load existing comments
         async function loadComments() {
             const response = await fetch("/api/tickets/" + ticketId + "/comments/", {
                 headers: { "Authorization": "Bearer " + token }
@@ -124,6 +104,7 @@
         }
         loadComments();
 
+        // Add a comment
         const addCommentBtn = document.getElementById("addCommentBtn");
         addCommentBtn.addEventListener("click", async function () {
             const body = document.getElementById("commentBody").value;
@@ -145,6 +126,39 @@
                 commentMessage.textContent = "Failed: " + JSON.stringify(data);
             }
         });
+
+        // --- Real-time comments via WebSocket ---
+        // ws:// for http (local), wss:// for https (production)
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const socket = new WebSocket(
+            wsProtocol + "//" + window.location.host + "/ws/tickets/" + ticketId + "/"
+        );
+
+        // When a comment arrives over the WebSocket, add it live
+        socket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            const commentList = document.getElementById("commentList");
+            if (commentList.querySelector("em")) {
+                commentList.innerHTML = "";
+            }
+            const li = document.createElement("li");
+            li.textContent = data.author + ": " + data.body;
+            commentList.appendChild(li);
+        };
+
+        socket.onclose = function () {
+            console.log("WebSocket closed");
+        };
+
+        // Logout
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", function () {
+                localStorage.removeItem("access");
+                localStorage.removeItem("refresh");
+                window.location.href = "/";
+            });
+        }
     </script>
 </body>
 </html>
